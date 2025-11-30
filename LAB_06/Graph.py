@@ -2,6 +2,7 @@ import re
 from collections import deque
 import json
 from collections import defaultdict
+import copy
 
 class Graph:
     def __init__(self, directed = False):
@@ -164,326 +165,412 @@ class Graph:
                     leaf.append(u)
         return leaf
     
-    # def to_undirected(self):
-    #     g2 = Graph(directed = False)
-    #     for u in self.vertices:
-    #         for v in self.adj_list[u]:
-    #             g2.adj_list.setdefault(u, [])
-    #             g2.adj_list[u].append(v)
-    #             g2.adj_list.setdefault(v, [])
-    #             if u not in g2.adj_list[v]:
-    #                 g2.adj_list[v].append(u)
+    def base_undirected_graph(self):
+        if not self.directed:
+            return copy.deepcopy(self)
         
-    #     g2.vertices = g2.adj_list.keys()
-    #     g2.build_adj_matrix()
-    #     g2.build_edge_list()
-    #     return g2
-    
-    # def complement_graph(self):
-    #     comp = Graph(directed = self.directed)
-    #     V = self.vertices
-
-    #     neighbor_sets = {u: set(self.adj_list.get(u, [])) for u in V}
-
-    #     comp.adj_list = {u : [v for v in V if v != u and v not in neighbor_sets[u]] for u in V}
-
-    #     comp.vertices = V[:]
-    #     return comp
-
-    # def converse_graph(self):
-    #     if not self.directed:
-    #         return self.copy()
+        graph = Graph(directed = False)
+        graph.vertices = self.vertices
+        seen = set()
         
-    #     g2 = Graph(directed = True)
-    #     g2.adj_list = {u: [] for u in self.vertices}
-        
-    #     for u in self.vertices:
-    #         for v in self.adj_list[u]:
-    #             g2.adj_list[v].append(u)
+        for u, neighbors in self.adj_list.items():
+            for v, w in neighbors:
+                a, b = sorted([u, v])
+                if (a, b) in seen:
+                    continue
+                seen.add((a,b))
                 
-    #     g2.vertices = self.vertices[:]
-    #     return g2        
+                graph.adj_list[a].append((b, w))
+                graph.adj_list[b].append((a, w))
+                
+                graph.edge_list.append((a, b, w))
+                
+        graph.build_adj_matrix()
+        
+        return graph
     
-    # def DFS(self, start):
-    #     visited = set()
-    #     order = []
+    def complement_graph(self):
+        # Đồ thị có hướng không bù được
+        if self.directed:
+            return copy.deepcopy(self)
         
-    #     def go(u):
-    #         visited.add(u)
-    #         order.append(u)
-    #         for v in self.adj_list[u]:
-    #             if v not in visited:
-    #                 go(v)
+        vertices = self.vertices
+        existing_edges = set()
+        for u, neighbors in self.adj_list.items():
+            for v, w in neighbors:
+                a, b = sorted([u, v])
+                existing_edges.add((a, b))
+                
+        comp_graph = Graph(directed = False)
+        comp_graph.vertices = vertices
         
-    #     go(start)
-    #     return order
-    
-
-    # def BFS(self, start):
-    #     visited = {start}
-    #     q = deque([start])
-    #     order = []
+        n = len(vertices)
         
-    #     while q:
-    #         u = q.popleft()
-    #         order.append(u)
-    #         for v in self.adj_list[u]:
-    #             if v not in visited:
-    #                 visited.add(v)
-    #                 q.append(v)
-        
-    #     return order
-    
-    # def is_complete(self):
-    #     if self.directed:
-    #         return False
-        
-    #     n = len(self.vertices)
-    #     for u in self.vertices:
-    #         if len(self.adj_list[u]) != n -1:
-    #             return False
-    #     return True
-    
-    # def is_cycle(self):
-    #     for u in self.vertices:
-    #         if len(self.adj_list[u]) != 2:
-    #             return False
-        
-    #     visited = set()
-        
-    #     def dfs(start):
-    #         visited.add(start)
-    #         for v in self.adj_list[start]:
-    #             if v not in visited:
-    #                 dfs(v)
-        
-    #     dfs(self.vertices[0])
-        
-    #     return len(visited) == len(self.vertices)
+        for i in range (n):
+            for j in range (i + 1, n):
+                u, v = vertices[i], vertices[j]
+                a, b = sorted((u, v))
+                if (a, b) not in existing_edges:
+                    w = 1.0
+                    comp_graph.adj_list[u].append((v, w))
+                    comp_graph.adj_list[v].append((u, w))
                     
-    # def is_bipartite(self):
-    #     color = {}
+                    comp_graph.edge_list.append((u, v, w))
+                    
+        comp_graph.build_adj_matrix()
+        return comp_graph
         
-    #     for start in self.vertices:
-    #         if start not in color:
-    #             color[start] = 0
-    #             q = deque([start])
-    #             while q:
-    #                 u = q.popleft()
-    #                 for v in self.adj_list[u]:
-    #                     if v not in color:
-    #                         color[v] = 1 - color[u]
-    #                         q.append(v)
-    #                     elif color[v] == color[u]:
-    #                         return False
+
+    def converse_graph(self):
+        # Đồ thị vô hướng thì không đảo được
+        if not self.directed:
+            return copy.deepcopy(self)
         
-    #     return True
-    
-    # def is_complete_bipartite(self):
-    #     if self.directed:
-    #         return False
+        converse_graph = Graph(directed = True)
+        converse_graph.vertices = self.vertices
         
-    #     color = {}
-        
-    #     start = self.vertices[0]
-    #     color[start] = 0
-    #     q = deque([start])
-        
-    #     while (q):
-    #         u  = q.popleft()
-    #         for v in self.adj_list[u]:
-    #             if v not in color:
-    #                 color[v] = 1 - color[u]
-    #                 q.append(v)
-    #             elif color[v] == color[u]:
-    #                 return False
+        for u, neighbors in self.adj_list.items():
+            for v, w in neighbors:
+                converse_graph.adj_list[v].append((u, w))
+                converse_graph.edge_list.append((v, u, w))
                 
-    #     if (len(color) != len(self.vertices)):
-    #         return False
+        converse_graph.build_adj_matrix()
+        return converse_graph
+                
+    
+    def DFS(self, start):
+        visited = set()
+        order = []
         
-    #     A = [u for u in self.vertices if color[u] == 0]
-    #     B = [u for u in self.vertices if color[u] == 1]
+        def go(u):
+            visited.add(u)
+            order.append(u)
+            for v, w in self.adj_list[u]:
+                if v not in visited:
+                    go(v)
         
-    #     for u in A:
-    #         if set(self.adj_list[u]) != set(B):
-    #             return False
+        go(start)
+        return order
+    
+
+    def BFS(self, start):
+        visited = {start}
+        order = []
+        q = deque([start])
+        
+        while q:
+            u = q.popleft()
+            order.append(u)
+            for v, w in self.adj_list[u]:
+                if v not in visited:
+                    visited.add(v)
+                    q.append(v)
+                    
+        return order
+    
+    
+    def is_complete(self):
+        if self.directed:
+            return False
+        
+        n = len(self.vertices)
+        for u in self.vertices:
+            if len(self.adj_list[u]) != n -1:
+                return False
+        return True
+    
+    def is_cycle(self):     
+        visited = set()
+        
+        def dfs(start):
+            visited.add(start)
+            for v, w in self.adj_list[start]:
+                if v not in visited:
+                    dfs(v)
+        
+        dfs(self.vertices[0])
+        
+        return len(visited) == len(self.vertices)
+                    
+    def is_bipartite(self):
+        color = {}
+        
+        for start in self.vertices:
+            if start not in color:
+                color[start] = 0
+                q = deque([start])
+                while q:
+                    u = q.popleft()
+                    for v, w in self.adj_list[u]:
+                        if v not in color:
+                            color[v] = 1 - color[u]
+                            q.append(v)
+                        elif color[v] == color[u]:
+                            return False
+        
+        return True
+    
+    def is_complete_bipartite(self):
+        if self.directed:
+            return False
+        
+        color = {}
+        start = self.vertices[0]
+        color[start] = 0
+        q = deque([start])
+        
+        while q:
+            u = q.popleft()
+            for v, w in self.adj_list[u]:
+                if v not in color:
+                    color[v] = 1 - color[u]
+                    q.append(v)
+                elif color[v] == color[u]:
+                    return False
+                
+        if len(color) != len(self.vertices):
+            return False
+        
+        A = {u for u in self.vertices if color[u] == 1}
+        B = {u for u in self.vertices if color[u] == 0}
+        
+        if A & B:
+            return False
+        
+        for u in A:
+            neighbors_u = {v for v, w in self.adj_list[u]}
+            if neighbors_u != B:
+                return False
             
-    #     for v in B:
-    #         if set(self.adj_list[v]) != set(A):
-    #             return False       
-        
-    #     return True
+        for u in B:
+            neighbors_u = {v for v, w in self.adj_list[u]}
+            if neighbors_u != A:
+                return False
+            
+        return True
+            
                         
-    # def count_connect_components(self):
-    #     visited = set()
-    #     comps = 0
+    def count_connect_components(self):
+        visited = set()
+        comps = 0
         
-    #     def dfs(u):
-    #         visited.add(u)
-    #         for v in self.adj_list[u]:
-    #             if v not in visited:
-    #                 dfs(v)
+        def dfs(u):
+            visited.add(u)
+            for v in self.adj_list[u]:
+                if v not in visited:
+                    dfs(v)
         
-    #     for u in self.vertices:
-    #         if u not in visited:
-    #             comps += 1
-    #             dfs(u)
+        for u in self.vertices:
+            if u not in visited:
+                comps += 1
+                dfs(u)
         
-    #     return comps
+        return comps
 
-    # def articulation_points(self):
-    #     comps = self.count_connect_components()
-    #     articulationPoints = []
+    def articulation_points(self):
+        comps = self.count_connect_components()
+        art_Points = []
         
-    #     def dfs(u, banned, visited):
-    #         visited.add(u)
-    #         for v in self.adj_list[u]:
-    #             if v == banned:
-    #                 continue
-    #             if v not in visited:
-    #                 dfs(v, banned, visited)
-                    
-    #     for banned in self.vertices:
-    #         visited = set([banned])
-    #         cnt = 0
+        def dfs(u, banned, visited):
+            visited.add(u)
+            for v, w in self.adj_list[u]:
+                if v == banned:
+                    continue
+                if v not in visited:
+                    dfs(v, banned, visited)
+        
+        for banned in self.vertices:
+            visited = set([banned])
+            cnt = 0
             
-    #         for u in self.vertices:
-    #             if u not in visited:
-    #                 dfs(u, banned, visited)
-    #                 cnt+=1
+            for u in self.vertices:
+                if u not in visited:
+                    cnt += 1
+                    dfs(u, banned, visited)
             
-    #         if cnt > comps:
-    #             articulationPoints.append(banned)
+            if cnt > comps:
+                art_Points.append(banned)
+        
+        return art_Points
+
+    def bridges(self):
+        comps = self.count_connect_components()
+        bridge = []
+        seen = set()
+        
+        def dfs(u, banned_x, banned_y, visited):
+            visited.add(u)
+            for v, w in self.adj_list[u]:
+                if (u == banned_x and v == banned_y) or (u == banned_y and v == banned_x):
+                    continue
+                if v not in visited:
+                    dfs(v, banned_x, banned_y, visited)
+        
+        for banned_x, banned_y in self.edge_list:
+            e = tuple(sorted([banned_x, banned_y]))
+            if e in seen:
+                continue
+            seen.add(e)
+            
+            visited = set()
+            cnt = 0 
+            
+            for u in self.vertices:
+                if u not in visited:
+                    cnt += 1
+                    dfs(u, banned_x, banned_y, visited)
+            
+            if cnt > comps:
+                bridge.append((banned_x, banned_y))
                 
-    #     return articulationPoints
+        return bridge
 
-    # def bridges(self):
-    #     comps = self.count_connect_components()
-    #     bridge = []
-    #     seen = set()
-        
-    #     def dfs(u, banned_x, banned_y, visited):
-    #         visited.add(u)
-    #         for v in self.adj_list[u]:
-    #             if (u == banned_x and v == banned_y) or (u == banned_y and v == banned_x):
-    #                 continue
-    #             if v not in visited:
-    #                 dfs(v, banned_x, banned_y, visited)
-                    
-    #     for banned_x, banned_y in self.edge_list:
-    #         e  = tuple(sorted((banned_x, banned_y)))
-    #         if e in seen:
-    #             continue
-    #         seen.add(e)
-            
-    #         visited = set()
-    #         cnt = 0
-            
-    #         for u in self.vertices:
-    #             if u not in visited:
-    #                 dfs(u, banned_x, banned_y, visited)
-    #                 cnt+=1
-            
-    #         if cnt > comps:
-    #             bridge.append([banned_x, banned_y])
-                
-    #     return bridge
+    def euler_hierholzer(self):
+        # Chỉ xét đồ thị vô hướng
+        if self.directed:
+            return None
 
-    # def euler_hierholzer(self):
-    #     adjList = {u: self.adj_list[u][:] for u in self.vertices}
-        
-    #     odd = [u for u in  self.vertices if len(adjList[u]) % 2 == 1]
-        
-    #     if len(odd) == 0:
-    #         start = self.vertices[0] # Chu trình Euler
-    #     elif len(odd) == 2:
-    #         start = odd[0] # Đường đi Euler
-    #     else:
-    #         return None
-            
-    #     stack = [start]
-    #     path = []
-        
-    #     while stack:
-    #         u = stack[-1]
-    #         if adjList[u]:
-    #             v = adjList[u].pop()
-    #             adjList[v].remove(u)
-    #             stack.append(v)
-    #         else:
-    #             path.append(stack.pop())
-        
-    #     return path[::-1]
+        adj = {u: [v for (v, w) in self.adj_list[u]] for u in self.vertices}
+
+        odd = [u for u in self.vertices if len(adj[u]) % 2 == 1]
+
+        if len(odd) == 0:
+            # Chu trình Euler: chọn 1 đỉnh bất kỳ có cạnh
+            start = None
+            for u in self.vertices:
+                if adj[u]:   # có ít nhất 1 cạnh
+                    start = u
+                    break
+            if start is None:
+                return []    # đồ thị không có cạnh
+        elif len(odd) == 2:
+            # Đường đi Euler: bắt đầu từ 1 trong 2 đỉnh bậc lẻ
+            start = odd[0]
+        else:
+            # Không thỏa điều kiện Euler
+            return None
+
+        # Hàm DFS dùng để kiểm tra liên thông / cầu
+        def dfs(u, visited, adj_local):
+            visited.add(u)
+            for v in adj_local[u]:
+                if v not in visited:
+                    dfs(v, visited, adj_local)
+
+        # Kiểm tra các đỉnh bậc > 0 phải nằm trong cùng 1 thành phần liên thông
+        visited0 = set()
+        dfs(start, visited0, adj)
+        for u in self.vertices:
+            if adj[u] and u not in visited0:
+                return None
+
+        stack = [start]
+        path = []
+
+        while stack:
+            u = stack[-1]
+            if adj[u]:
+                v = adj[u].pop()
+                adj[v].remove(u)
+                stack.append(v)
+            else:
+                path.append(stack.pop())
+
+        return path[::-1]
     
-    # def euler_fleury(self):
-    #     adjList = {u: self.adj_list[u][:] for u in self.vertices}
-        
-    #     odd = [u for u in self.vertices if len(adjList[u]) % 2 == 1]
-        
-    #     if len(odd) == 0:
-    #         start = self.vertices[0] # chu trình euler
-    #     elif len(odd) == 2:
-    #         start = odd[0] # đường đi euler
-    #     else:
-    #         return None
-        
-    #     def dfs(u, visited):
-    #         visited.add(u)
-    #         for v in adjList[u]:
-    #             if v not in visited:
-    #                 dfs(v, visited)
-                    
-    #     visited = set()
-    #     dfs(start, visited)
-    #     for u in self.vertices:
-    #         if len(adjList[u]) > 0 and u not in visited:
-    #             return None # Các đỉnh có bậc > 0 phải liên thông
-            
-    #     def is_bridge(u, v):
-    #         visited1 = set()
-    #         dfs(u, visited)
-            
-    #         adjList[u].remove(v)
-    #         adjList[v].remove(u)
-            
-    #         visited2 = set()
-    #         dfs(u, visited2)
-            
-    #         adjList[u].insert(0, v)
-    #         adjList[v].insert(0, u)
-            
-    #         return len(visited2) < len(visited1)
-        
-    #     path = [start]
-    #     u = start
-        
-    #     while True:
-    #         if not adjList[u]:
-    #             break
-            
-    #         chosen = None
-            
-    #         for v in adjList[u]:
-    #             if len(adjList[u]) == 1:
-    #                 chosen = v
-    #                 break
-                
-    #             if not is_bridge(u, v):
-    #                 chosen = v
-    #                 break
-            
-    #         if chosen is None:
-    #             chosen = adjList[u][0]
-                
-    #         adjList[u].remove(chosen)
-    #         adjList[chosen].remove(u)
-            
-    #         path.append(chosen)
-    #         u = chosen
+    def euler_fleury(self):
+        # Chỉ xét đồ thị vô hướng
+        if self.directed:
+            return None
 
-    #     return path
+        # Tạo bản sao adjacency CHỈ chứa đỉnh (bỏ weight)
+        adj = {u: [v for (v, w) in self.adj_list[u]] for u in self.vertices}
 
-        
+        odd = [u for u in self.vertices if len(adj[u]) % 2 == 1]
+
+        if len(odd) == 0:
+            # Chu trình Euler: chọn 1 đỉnh bất kỳ có cạnh
+            start = None
+            for u in self.vertices:
+                if adj[u]:   # có ít nhất 1 cạnh
+                    start = u
+                    break
+            if start is None:
+                return []    # đồ thị không có cạnh
+        elif len(odd) == 2:
+            # Đường đi Euler: bắt đầu từ 1 trong 2 đỉnh bậc lẻ
+            start = odd[0]
+        else:
+            # Không thỏa điều kiện Euler
+            return None
+
+        # Hàm DFS dùng để kiểm tra liên thông / cầu
+        def dfs(u, visited, adj_local):
+            visited.add(u)
+            for v in adj_local[u]:
+                if v not in visited:
+                    dfs(v, visited, adj_local)
+
+        # Kiểm tra các đỉnh bậc > 0 phải nằm trong cùng 1 thành phần liên thông
+        visited0 = set()
+        dfs(start, visited0, adj)
+        for u in self.vertices:
+            if adj[u] and u not in visited0:
+                return None
+
+        def is_bridge(u, v):
+            if len(adj[u]) == 1:
+                return False
+
+            visited1 = set()
+            dfs(u, visited1, adj)
+
+            # Xóa cạnh u - v tạm thời
+            adj[u].remove(v)
+            adj[v].remove(u)
+
+            # Đếm lại sau khi xóa
+            visited2 = set()
+            dfs(u, visited2, adj)
+
+            # Khôi phục cạnh
+            adj[u].append(v)
+            adj[v].append(u)
+
+            # Nếu số đỉnh reachable giảm -> là cầu
+            return len(visited2) < len(visited1)
+
+
+        # Thuật toán Fleury
+        path = [start]
+        u = start
+
+        while True:
+            if not adj[u]:
+                break  # hết cạnh đi ra từ u
+
+            chosen = None
+
+            for v in adj[u]:
+                if len(adj[u]) == 1:
+                    chosen = v
+                    break
+
+                if not is_bridge(u, v):
+                    chosen = v
+                    break
+
+            if chosen is None:
+                chosen = adj[u][0]
+
+            adj[u].remove(chosen)
+            adj[chosen].remove(u)
+
+            path.append(chosen)
+            u = chosen
+
+        return path
+
 
 if __name__ == "__main__":
     
