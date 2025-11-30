@@ -49,7 +49,7 @@ class Graph:
                 vertices_set.add(u)
                 vertices_set.add(v)
                 
-        graph.vertices = list(vertices_set)
+        graph.vertices = sorted(vertices_set)
         graph.build_adj_matrix()
         
         return graph
@@ -57,11 +57,11 @@ class Graph:
     @staticmethod
     def calc_weight(model: str, capacity: str, duration: str) -> float:
         seats = list(map(int, re.findall(r"\d+", capacity)))
-        total_seats = sum(seats)
+        total_seats = sum(seats) if seats else 1
         
         s = duration.lower()
-        h_match = re.search(r"(\d+)\s*hours", s)
-        m_match = re.search(r"(\d+)\s*minutes", s)
+        h_match = re.search(r"(\d+)\s*hour", s)
+        m_match = re.search(r"(\d+)\s*minute", s)
         
         hours = int(h_match.group(1)) if h_match else 0
         minutes = int(m_match.group(1)) if m_match else 0
@@ -170,7 +170,7 @@ class Graph:
             return copy.deepcopy(self)
         
         graph = Graph(directed = False)
-        graph.vertices = self.vertices
+        graph.vertices = list(self.vertices)
         seen = set()
         
         for u, neighbors in self.adj_list.items():
@@ -194,7 +194,7 @@ class Graph:
         if self.directed:
             return copy.deepcopy(self)
         
-        vertices = self.vertices
+        vertices = list(self.vertices)
         existing_edges = set()
         for u, neighbors in self.adj_list.items():
             for v, w in neighbors:
@@ -202,7 +202,7 @@ class Graph:
                 existing_edges.add((a, b))
                 
         comp_graph = Graph(directed = False)
-        comp_graph.vertices = vertices
+        comp_graph.vertices = list(vertices)
         
         n = len(vertices)
         
@@ -227,7 +227,7 @@ class Graph:
             return copy.deepcopy(self)
         
         converse_graph = Graph(directed = True)
-        converse_graph.vertices = self.vertices
+        converse_graph.vertices = list(self.vertices)
         
         for u, neighbors in self.adj_list.items():
             for v, w in neighbors:
@@ -279,18 +279,28 @@ class Graph:
                 return False
         return True
     
-    def is_cycle(self):     
+    def is_cycle(self):
+        if self.directed:
+            return False
+
         visited = set()
-        
-        def dfs(start):
-            visited.add(start)
-            for v, w in self.adj_list[start]:
+        def dfs(u):
+            visited.add(u)
+            for v, w in self.adj_list[u]:
                 if v not in visited:
                     dfs(v)
+                    
         
         dfs(self.vertices[0])
-        
-        return len(visited) == len(self.vertices)
+        if len(visited) != len(self.vertices):
+            return False
+
+        for u in self.vertices:
+            if len(self.adj_list[u]) != 2:
+                return False
+
+        return True
+
                     
     def is_bipartite(self):
         color = {}
@@ -334,6 +344,8 @@ class Graph:
         A = {u for u in self.vertices if color[u] == 1}
         B = {u for u in self.vertices if color[u] == 0}
         
+        if not A or not B:
+            return False
         if A & B:
             return False
         
@@ -356,7 +368,7 @@ class Graph:
         
         def dfs(u):
             visited.add(u)
-            for v in self.adj_list[u]:
+            for v, w in self.adj_list[u]:
                 if v not in visited:
                     dfs(v)
         
@@ -368,6 +380,9 @@ class Graph:
         return comps
 
     def articulation_points(self):
+        if self.directed:
+            return []
+        
         comps = self.count_connect_components()
         art_Points = []
         
@@ -394,6 +409,9 @@ class Graph:
         return art_Points
 
     def bridges(self):
+        if self.directed:
+            return []
+        
         comps = self.count_connect_components()
         bridge = []
         seen = set()
