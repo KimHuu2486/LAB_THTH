@@ -56,8 +56,14 @@ class Graph:
                 
     @staticmethod
     def calc_weight(model: str, capacity: str, duration: str) -> float:
-        seats = list(map(int, re.findall(r"\d+", capacity)))
-        total_seats = sum(seats) if seats else 1
+        seats = capacity.lower()
+        b_seats  = re.findall(r"(\d+)\s*business", capacity)
+        e_seats  = re.findall(r"(\d+)\s*economy", capacity)
+        
+        bussiness_seats = int(b_seats[0]) if b_seats else 0
+        economy_seats = int(e_seats[0]) if e_seats else 0
+        
+        total_seats = bussiness_seats + economy_seats if (bussiness_seats + economy_seats) > 0 else 1
         
         s = duration.lower()
         h_match = re.search(r"(\d+)\s*hour", s)
@@ -82,6 +88,7 @@ class Graph:
             for v, weight in neighbors:
                 j = index[v]
                 self.adj_matrix[i][j] = weight
+                self.adj_matrix[j][i] = weight if not self.directed else self.adj_matrix[j][i]
 
     def print_adj_list(self):
         print("Danh sach ke: ")
@@ -424,7 +431,7 @@ class Graph:
                 if v not in visited:
                     dfs(v, banned_x, banned_y, visited)
         
-        for banned_x, banned_y in self.edge_list:
+        for banned_x, banned_y, w in self.edge_list:
             e = tuple(sorted([banned_x, banned_y]))
             if e in seen:
                 continue
@@ -589,12 +596,3 @@ class Graph:
 
         return path
 
-
-if __name__ == "__main__":
-    
-    g = Graph.load_graph_from_jl("input.jl", directed = False)
-    g.print_adj_list()
-    print("\n")
-    # g.print_adj_matrix()
-    # print("\n")
-    g.print_edge_list()
