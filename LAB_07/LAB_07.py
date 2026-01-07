@@ -51,8 +51,9 @@ class Graph:
             out_degree = len(self.adj[node])
             in_degree = 0
             for u in self.adj:
-                if node in self.adj[u]:
-                    in_degree += 1
+                for v, _ in self.adj[u]:
+                    if v == node:
+                        in_degree += 1
                     
             return in_degree, out_degree
             
@@ -110,23 +111,32 @@ class Graph:
 
     def bfs_shortest_path(self, start, end) -> list:
         visited = set()
-        queue = deque(start)
+        queue = deque([start])
         visited.add(start)
-        path = []
+        parent = {start: None}
         
         while queue:
             current_node = queue.popleft()
-            path.append(current_node)
             
             if current_node == end:
-                return path
+                break
             
             for neighbor, _ in self.adj.get(current_node, []):
                 if neighbor not in visited:
                     visited.add(neighbor)
+                    parent[neighbor] = current_node
                     queue.append(neighbor)
                     
-        return None
+        if end not in parent:
+            return None
+        
+        path = []
+        current = end
+        while current is not None:
+            path.append(current)
+            current = parent[current]
+        path.reverse()
+        return path
 
     def dijkstra(self, start, end):
         pq = [(0, start, [start])]
@@ -153,8 +163,27 @@ class Graph:
                         
         return float('inf'), []
 
+    def base_undirected(self):
+        undirected_adj = {}
+        undirected_edges = set()
+        
+        for u in self.adj:
+            for v, w in self.adj[u]:
+                if u not in undirected_adj:
+                    undirected_adj[u] = []
+                if v not in undirected_adj:
+                    undirected_adj[v] = []
+                undirected_adj[u].append((v, w))
+                undirected_adj[v].append((u, w))
+                undirected_edges.add((min(u, v), max(u, v), w))
+                
+        self.adj = undirected_adj
+        self.edges = list(undirected_edges)
+        self.directed = False
 
 if __name__ == "__main__":
     filename = 'graph.txt'
     graph = Graph(filename)
     graph.print_adj()
+    
+    print(graph.dijkstra(1, 5))
